@@ -1,0 +1,17 @@
+# $Id: Makefile.in,v 1.1.1.1 2004-09-01 15:12:44 hww3 Exp $
+@make_variables@
+VPATH=@srcdir@:
+OBJS=pcap.o
+MODDIR=Public.pmod/Network.pmod/
+MODNAME=Pcap
+MODULE_PMOD_IN=module.pmod.in
+MODULE_LDFLAGS=@LDFLAGS@ @LIBS@
+AUTODOC_SRC_IN=pcap.c
+MODULE_CLEAN_EXTRA=config.h
+CONFIG_HEADERS=@CONFIG_HEADERS@
+
+CFLAGS=@PCAP_CFLAGS@
+LDFLAGS=@PCAP_LIBS@
+
+@dynamic_module_makefile@
+@dependencies@

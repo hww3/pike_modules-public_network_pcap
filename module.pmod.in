@@ -1,0 +1,16 @@
+#pike __REAL_VERSION__
+
+constant __author = "Bill Welliver <hww3@riverweb.com>";
+constant __version = "1.1";
+
+class Pcap {
+
+inherit Public.Network.___Pcap.Pcap;
+
+/*
+void create(mixed ... args)
+{
+  ::create(args);
+}
+*/
+}

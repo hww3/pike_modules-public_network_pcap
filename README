@@ -1,0 +1,3 @@
+This module provides a client interface to the pcap packet capture 
+library. For details, see this module's reference documentation, as
+well as the pcap homepage at http://www.tcpdump.org.

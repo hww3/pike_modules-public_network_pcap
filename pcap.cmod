@@ -1,0 +1,573 @@
+/* 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * $Id: pcap.cmod,v 1.1.1.1 2004-09-01 15:12:44 hww3 Exp $
+ */
+
+/*
+ * File licensing and authorship information block.
+ *
+ * Version: MPL 1.1/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Initial Developer of the Original Code is
+ *
+ * Bill Welliver <hww3@riverweb.com>
+ *
+ * Portions created by the Initial Developer are Copyright (C) Bill Welliver
+ * All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of the LGPL, and not to allow others to use your version
+ * of this file under the terms of the MPL, indicate your decision by
+ * deleting the provisions above and replace them with the notice
+ * and other provisions required by the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL or the LGPL.
+ *
+ * Significant Contributors to this file are:
+ *
+ */
+
+/*! @module Public
+ */
+
+/*! @module Network
+ */
+
+/*! @module Pcap
+ */
+
+#define _GNU_SOURCE
+
+#include "util.h"
+#include "config.h"
+
+#ifdef HAVE_LIBPCAP
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+
+#ifdef HAVE_PCAP_H
+#include <pcap.h>
+#endif
+
+PIKECLASS Pcap
+{
+
+typedef struct
+{
+    pcap_t * handle;
+} PCAP_OBJECT_DATA;
+
+CVAR PCAP_OBJECT_DATA   *object_data;
+PIKEVAR int promisc;
+PIKEVAR string dev;
+PIKEVAR function capture_cb;
+PIKEVAR int capture_length;
+PIKEVAR int capture_timeout;
+
+/****
+ *
+ * Low-level Pcap interface
+ *
+ ****/
+
+void got_packet_cb(u_char *user_data, const struct pcap_pkthdr *header, 
+  const u_char *packet)
+{
+  struct svalue *sv;
+  int num_args;
+ 
+  sv = &(THIS->capture_cb);
+
+  if(UNSAFE_IS_ZERO(sv)); /* have we set a callback? */
+  else
+  {
+    /* push the callback arguments onto the stack. */
+    push_svalue(&THIS->capture_cb);
+  
+    num_args=1;
+
+    push_text("time_sec");
+    push_int(header->ts.tv_sec);
+    push_text("time_msec");
+    push_int(header->ts.tv_usec);
+    push_text("caplen");
+    push_int(header->caplen);
+    push_text("len");
+    push_int(header->len);
+    push_text("data");
+    push_string(make_shared_binary_string(packet, header->caplen));
+    f_aggregate_mapping(10);
+
+    if(user_data)
+    {
+       sv = (struct svalue *)user_data;
+       push_svalue(sv);
+       num_args = 2;
+    }
+  
+    /* call the callback function */
+    apply_svalue(Pike_sp-(num_args+1), num_args);
+
+    /* pop the callback and returned value from the stack */
+    pop_n_elems(num_args);  
+  }
+}
+
+/*! @decl void create()
+ *!   Creates a new Pcap object
+ *!
+ */
+PIKEFUN void create()
+{
+  struct svalue *sv;
+
+  sv = malloc(sizeof(struct svalue));
+
+  sv->type = T_INT;
+  sv->subtype = NUMBER_UNDEFINED;
+
+  THIS->capture_length = 56;
+  THIS->capture_timeout = 10;
+  assign_svalue(&THIS->capture_cb, sv);
+}
+
+/*! @decl string lookup_dev()
+ *!   Returns a likely device name for capturing data.
+ *!
+ */
+PIKEFUN string lookup_dev()
+{
+  char * dev;
+  char errbuf[PCAP_ERRBUF_SIZE];
+
+  dev = pcap_lookupdev(errbuf);
+
+  if(strlen(errbuf))
+    Pike_error("Public.Network.Pcap()->lookup_dev(): %s\n", errbuf);
+  push_text(dev);
+}
+
+/*! @decl void set_promisc(int promisc)
+ *!   Toggles the promiscuous capture flag.
+ *!
+ *!    Only takes effect when a capture is opened.
+ *!
+ */
+PIKEFUN void set_promisc(int promisc)
+{
+  THIS->promisc = promisc;
+  pop_n_elems(args);
+}
+
+/*! @decl void set_promisc(int msec)
+ *!   Sets the capture timeout. Not available or effective on all systems.
+ *!
+ *!   Only takes effect when a capture is opened.
+ *!
+ */
+PIKEFUN void set_capture_timeout(int msec)
+{
+  THIS->capture_timeout = msec;
+  pop_n_elems(args);
+}
+
+/*! @decl void set_capture_callback(function cb)
+ *!   Sets the capture callback function for use with @[loop] and @[dispatch].
+ *!   The callback function takes 2 arguments: a mapping containing the data, and an
+ *!   optional user data argument supplied to the capture function.
+ *!
+ */
+PIKEFUN void set_capture_callback(function cb)
+{
+  assign_svalue(&(THIS->capture_cb), cb);
+  pop_n_elems(args);
+}
+
+/*! @decl void set_capture_length(int len)
+ *!   Sets the maximum amount of data that will be captured. 
+ *!   Should be set to at least the largest amount of data expected on a given 
+ *!   network. By default, the length is set to 56, which is a minimum amount for 
+ *!   useful data capture.
+ *!
+ *!   Only takes effect when a capture is opened.
+ *!
+ */
+PIKEFUN void set_capture_length(int len)
+{
+  THIS->capture_length = len;
+  pop_n_elems(args);
+}
+
+/*! @decl string version()
+ *!   Returns the version if the pcap library in use.
+ *!
+ *!   Not available with all versions of the pcap library. If this function is not available,
+ *!   this function will return zero (0).
+ *!
+ */
+PIKEFUN string version()
+{
+  char * ver;
+
+#ifdef HAVE_PCAP_LIB_VERSION
+  ver = pcap_lib_version();
+  push_text(ver);
+#else
+  push_int(0);  
+#endif /* HAVE_PCAP_LIB_VERSION */
+
+}
+
+/*! @decl string file_version()
+ *!   Returns the version of the capture file being read.
+ */
+PIKEFUN string file_version()
+{
+  int res;
+  int major_ver;
+  int minor_ver;
+  char * v;
+
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->version(): not open.\n");
+
+  major_ver = pcap_major_version(THIS->object_data->handle);
+  minor_ver = pcap_minor_version(THIS->object_data->handle);
+ 
+  res = sprintf(v, "%d.%d", major_ver, minor_ver);
+
+  push_text(v);
+}
+
+
+/*! @decl int close()
+ *!   Closes the capture device.
+ */
+PIKEFUN int close()
+{
+  if(THIS->object_data->handle)
+  {
+    pcap_close(THIS->object_data->handle);
+    THIS->object_data->handle = 0;
+    push_int(1);    
+  }
+  else
+  {
+    Pike_error("Public.Network.Pcap()->close(): not open.\n");
+  }
+}
+
+/*! @decl string open_live(string dev)
+ *!   opens a capture session on device dev.
+ *!
+ *!   throws an error if the open was unsuccessful.
+ *! 
+ *!  @seealso 
+ *!    @[set_capture_length] @[set_promisc]
+ */
+PIKEFUN int open_live(string dev)
+{
+  pcap_t * h;
+  char errbuf[PCAP_ERRBUF_SIZE];
+  errbuf[0]=0;
+
+  if(THIS->object_data->handle)
+  {
+      Pike_error("Public.Network.Pcap()->open_live(): already open.\n");
+  }
+
+  h = pcap_open_live(dev->str, THIS->capture_length, THIS->promisc, 0, errbuf);
+
+  if(!h) 
+  { 
+    Pike_error("Public.Network.Pcap()->open_live(): %s\n", errbuf);
+  }
+
+  if(strlen(errbuf))
+  {
+    fprintf(stdout, "%s", errbuf);
+  }
+
+  THIS->object_data->handle = h;
+  THIS->dev = dev;
+  pop_n_elems(args);
+  push_int(1);
+  return;
+}
+
+/*! @decl string open_offline(string file)
+ *!   opens a the capture file located at path file.
+ *!
+ *!   throws an error if the open was unsuccessful.
+ *! 
+ */
+PIKEFUN int open_offline(string file)
+{
+  pcap_t * h;
+  char errbuf[PCAP_ERRBUF_SIZE];
+  errbuf[0]=0;
+
+  if(THIS->object_data->handle)
+  {
+      Pike_error("Public.Network.Pcap()->open_offline(): already open.\n");
+  }
+
+  h = pcap_open_offline(file->str, errbuf);
+
+  if(!h) 
+  { 
+    Pike_error("Public.Network.Pcap()->open_offline(): %s\n", errbuf);
+  }
+
+  THIS->object_data->handle = h;
+
+  pop_n_elems(args);
+  push_int(1);
+  return;
+}
+
+/*! @decl string set_filter(string filter)
+ *!   Compiles and sets a capture filter for the current filter session.
+ *! 
+ *!   @param filter
+ *!     A string representing the desired filter, in bpf filter format.
+ *!   @example
+ *!     set_filter("host pelix.ida.liu.se");
+ *!
+ *!   throws an error if the filter set was unsuccessful.
+ *! 
+ */
+PIKEFUN int set_filter(string filter)
+{
+  char errbuf[PCAP_ERRBUF_SIZE];
+  struct bpf_program *filt;
+  bpf_u_int32 mask;
+  bpf_u_int32 net;
+  char * f;
+
+  filt = malloc(sizeof(struct bpf_program));
+
+  errbuf[0]=0;
+
+  f = strdup(filter->str);
+
+  pcap_lookupnet(strdup(THIS->dev->str), &net, &mask, errbuf);
+
+  if(strlen(errbuf))
+    Pike_error("Public.Network.Pcap()->set_filter(): %s\n", errbuf);
+
+  pcap_compile(THIS->object_data->handle, filt, f, 0, net);
+  if(strlen(errbuf))
+    Pike_error("Public.Network.Pcap()->set_filter(): %s\n", errbuf);
+  pcap_setfilter(THIS->object_data->handle, filt);
+  if(strlen(errbuf))
+    Pike_error("Public.Network.Pcap()->set_filter(): %s\n", errbuf);
+  pcap_freecode(filt);
+
+  pop_n_elems(args);
+
+  push_int(1);
+}
+
+/*! @decl void breakloop()
+ *!  break free from a capture loop.
+ *!
+ *! @note
+ *!  not available with all versions of the pcap library. if not present, this function will
+ *!  perform no actions.
+ */
+PIKEFUN void breakloop()
+{
+
+#ifdef HAVE_PCAP_BREAKLOOP
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->breakloop(): not open.\n");
+
+  pcap_breakloop(THIS->object_data->handle);
+#else
+
+  /* we don't have pcap_breakloop(), so do nothing */
+
+#endif /* HAVE_PCAP_BREAKLOOP */
+
+  return;
+}
+
+/*! @decl int loop(int cnt, mixed|void data)
+ *!  start a capture loop.
+ *!  for each packet captured, the capture callback function will be called.
+ *! 
+ *! @param cnt
+ *!   the number of packets to collect before returning. 
+ *!
+ *! @param data
+ *!   an optional parameter that will be passed as the last argument to the capture callback function.
+ *!
+ *!  @returns
+ *!    0 if all packets were successfully captured, -1 if an error occurred, or -2 if @[breakloop] was
+ *!    used to terminate packet processing.
+ *!
+ *! @seealso
+ *!   @[set_capture_callback]
+ */
+PIKEFUN int loop(int cnt, mixed|void data)
+{
+  u_char * user_data;
+  int res;
+
+  user_data = (u_char *)data;
+  
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->loop(): not open.\n");
+
+  res = pcap_loop(THIS->object_data->handle, cnt, 
+    got_packet_cb, user_data);  
+
+  push_int(res);
+
+  return;
+}
+
+/*! @decl int dispatch(int cnt, mixed|void data)
+ *!  capture a number of packets.
+ *!  for each packet captured, the capture callback function will be called.
+ *! 
+ *! @param cnt
+ *!   the maximum number of packets to collect before returning. may return before any or all of the packets are 
+ *!   captured. 
+ *!
+ *! @param data
+ *!   an optional parameter that will be passed as the last argument to the capture callback function.
+ *!
+ *!  @returns 
+ *!    the number of packets captured.
+ *!
+ *! @seealso
+ *!   @[set_capture_callback]
+ */
+PIKEFUN int dispatch(int cnt, mixed|void data)
+{
+  u_char * user_data;
+  int res;
+
+  user_data = (u_char *)data;
+  
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->dispatch(): not open.\n");
+
+  res = pcap_dispatch(THIS->object_data->handle, cnt, 
+    got_packet_cb, user_data);  
+
+  push_int(res);
+
+  return;
+}
+
+/*! @decl mapping next()
+ *!  capture a packet.
+ *!
+ *! @returns
+ *!   a mapping containing packet data, or zero if no packet was captured in time.
+ *! @seealso
+ *!   @[set_capture_timeout]
+ */
+PIKEFUN mapping next()
+{
+  struct pcap_pkthdr header;          /* The header that pcap gives us */
+  const u_char *packet;                 /* The actual packet */
+
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->next(): not open.\n");
+
+  packet = pcap_next(THIS->object_data->handle, &header);
+
+  if(packet == NULL)
+  {
+     push_int(0);
+     return;
+  } 
+  push_text("len");
+  push_int(header.len);
+  push_text("caplen");
+  push_int(header.caplen);
+  push_text("time");
+  push_int(header.ts.tv_sec);
+  push_text("data");
+  push_string(make_shared_binary_string(packet, header.caplen));
+  f_aggregate_mapping(8);
+}
+
+INIT
+{
+    PCAP_OBJECT_DATA * dta = 
+	(PCAP_OBJECT_DATA*)malloc(sizeof(PCAP_OBJECT_DATA));
+    if (!dta)
+        Pike_error("init_pcap: Out of memory!\n");
+
+    dta->handle=0;
+
+    THIS->object_data = dta;
+
+}
+
+EXIT 
+{
+  if(THIS->object_data)
+  {
+
+    if(THIS->object_data->handle != NULL)
+      free(THIS->object_data->handle);
+
+    free(THIS->object_data);
+  }
+}
+
+}
+
+#endif /* HAVE_LIBPCAP */
+
+/*! @endmodule
+ */
+
+/*! @endmodule
+ */
+
+/*! @endmodule
+ */
+
+

@@ -1,0 +1,8 @@
+Version 1.2: Support for newer versions of autoconf
+
+Version 1.1: Docs for module website
+
+Version 1.0: Initial Release of the Pcap interface module
+
+Supports packet live capture and recorded playback in next, loop 
+and dispatch mode, as well as filter attachment.
