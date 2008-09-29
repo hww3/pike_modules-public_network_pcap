@@ -308,23 +308,29 @@ PIKEFUN int open_live(string dev)
 
   if(THIS->object_data->handle)
   {
-      Pike_error("Public.Network.Pcap()->open_live(): already open.\n");
+	pop_n_elems(args);
+    Pike_error("Public.Network.Pcap()->open_live(): already open.\n");
   }
 
   h = pcap_open_live(dev->str, THIS->capture_length, THIS->promisc, 0, errbuf);
 
   if(!h) 
   { 
+    pop_n_elems(args);
     Pike_error("Public.Network.Pcap()->open_live(): %s\n", errbuf);
   }
 
   if(strlen(errbuf))
   {
-    fprintf(stdout, "%s", errbuf);
+  pop_n_elems(args);
+  Pike_error("Public.Network.Pcap()->open_live(): %s\n", errbuf);
   }
 
   THIS->object_data->handle = h;
+
+  add_ref(dev);
   THIS->dev = dev;
+
   pop_n_elems(args);
   push_int(1);
   return;
@@ -344,6 +350,7 @@ PIKEFUN int open_offline(string file)
 
   if(THIS->object_data->handle)
   {
+	pop_n_elems(args);
       Pike_error("Public.Network.Pcap()->open_offline(): already open.\n");
   }
 
@@ -351,6 +358,7 @@ PIKEFUN int open_offline(string file)
 
   if(!h) 
   { 
+	pop_n_elems(args);
     Pike_error("Public.Network.Pcap()->open_offline(): %s\n", errbuf);
   }
 
@@ -379,24 +387,40 @@ PIKEFUN int set_filter(string filter)
   bpf_u_int32 mask;
   bpf_u_int32 net;
   char * f;
+  char * d;
 
   filt = malloc(sizeof(struct bpf_program));
-
-  errbuf[0]=0;
+  errbuf[0] = 0;
 
   f = strdup(filter->str);
+  if(!THIS->dev)
+  {
+	pop_n_elems(args);
+    Pike_error("Public.Network.Pcap()->set_filter(): no device opened.\n");
+  }
+  d = strdup(THIS->dev->str);
 
-  pcap_lookupnet(strdup(THIS->dev->str), &net, &mask, errbuf);
+  pcap_lookupnet(d, &net, &mask, &errbuf);
 
-  if(strlen(errbuf))
+  if(errbuf && strlen(errbuf))
+  {
+	pop_n_elems(args);
     Pike_error("Public.Network.Pcap()->set_filter(): %s\n", errbuf);
-
+  }
   pcap_compile(THIS->object_data->handle, filt, f, 0, net);
-  if(strlen(errbuf))
+  if(errbuf && strlen(errbuf))
+  {
+	pop_n_elems(args);
     Pike_error("Public.Network.Pcap()->set_filter(): %s\n", errbuf);
+  }
+
   pcap_setfilter(THIS->object_data->handle, filt);
-  if(strlen(errbuf))
+  if(errbuf && strlen(errbuf))
+  {
+	pop_n_elems(args);
     Pike_error("Public.Network.Pcap()->set_filter(): %s\n", errbuf);
+  }
+
   pcap_freecode(filt);
 
   pop_n_elems(args);
