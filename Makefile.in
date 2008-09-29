@@ -37,8 +37,8 @@ MODULE_LICENSE=GPL
 
 # we shouldn't need to do anything to the rest of the file.
 
-CFLAGS=@CMOD_CFLAGS@
-LDFLAGS=@CMOD_LIBS@
+CFLAGS=@PCAP_CFLAGS@
+LDFLAGS=@PCAP_LIBS@
 
 MODULE_LDFLAGS=@LDFLAGS@
 
