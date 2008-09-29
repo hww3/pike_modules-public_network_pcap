@@ -6,7 +6,7 @@ VPATH=@srcdir@:@srcdir@/../..:../..
 
 # the .o files that we need to generate for the module
 # rules will automatically generate these from .c, .cmod, .m and .mmod files.
-OBJS=cmod.o
+OBJS=pcap.o
 
 # the module directory we put things into. it should be a directory path
 # of .pmod directories, and this must end with a trailing slash.
