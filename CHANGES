@@ -1,8 +1,11 @@
-Version 1.2: 
+Version 1.3: 
 
-- Support for newer versions of autoconf
 - set_filter() works properly now
 - handle errors more properly
+
+Version 1.3:
+
+- Support for newer versions of autoconf
 
 Version 1.1: Docs for module website
 
