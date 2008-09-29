@@ -64,7 +64,7 @@ pmar:  verify
 	rm -rf ${MODULE_DIR_NAME}-1.${MIN}
 
 release: verify
-	svn copy http://wush.net/svn/hww3/trunk/pike_modules/${MODULE_DIR_NAME} /tags/pike_modules/${MODULE_DIR_NAME}/RELEASE_1_${MIN} 
+	svn copy http://wush.net/svn/hww3/trunk/pike_modules/${MODULE_DIR_NAME} http://wush.net/svn/hww3/tags/pike_modules/${MODULE_DIR_NAME}/RELEASE_1_${MIN} 
 	${MAKE} pmar RELEASE=${MIN}
 	svn export http://wush.net/svn/hww3/tags/pike_modules/${MODULE_DIR_NAME}/RELEASE_1_${MIN} ${MODULE_DIR_NAME}-1.${MIN} 
 	cd ${MODULE_DIR_NAME}-1.${MIN} && \
