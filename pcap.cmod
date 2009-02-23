@@ -556,6 +556,32 @@ PIKEFUN mapping next()
   f_aggregate_mapping(8);
 }
 
+PIKEFUN int datalink()
+{
+  int datalink;
+
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->datalink(): not open.\n");
+
+  datalink = pcap_datalink(THIS->object_data->handle);
+
+  RETURN (datalink);
+}
+
+PIKEFUN string datalink_val_to_name(int datalink)
+{
+  const char * datalink_name;
+
+  if(!THIS->object_data->handle)
+    Pike_error("Public.Network.Pcap()->datalink_val_to_name(): not open.\n");
+
+  datalink_name = pcap_datalink_val_to_name(datalink);
+
+  pop_stack();
+  push_text(datalink_name);
+  free(datalink_name);
+}
+
 INIT
 {
     PCAP_OBJECT_DATA * dta = 

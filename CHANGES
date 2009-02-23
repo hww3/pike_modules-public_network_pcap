@@ -1,9 +1,14 @@
+Version 1.4:
+
+- added datalink() and datalink_val_to_name()
+- fixed Makefile and configure script so things build properly
+
 Version 1.3: 
 
 - set_filter() works properly now
 - handle errors more properly
 
-Version 1.3:
+Version 1.2:
 
 - Support for newer versions of autoconf
 
