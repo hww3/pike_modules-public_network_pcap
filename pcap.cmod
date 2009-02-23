@@ -556,6 +556,13 @@ PIKEFUN mapping next()
   f_aggregate_mapping(8);
 }
 
+
+/*! @decl int datalink()
+ *!  returns the type of datalink encoding in use with the current devices
+ *!
+ *! @returns
+ *!   DLT_NULL, DLT_EN10MB, DLT_IEEE802, DLT_ARCNET or DLT_SLIP.
+ */
 PIKEFUN int datalink()
 {
   int datalink;
@@ -568,6 +575,10 @@ PIKEFUN int datalink()
   RETURN (datalink);
 }
 
+/*! @decl string datalink_val_to_name(int datalink)
+ *!
+ *!  converts a datalink val as returned by @[datalink] to a string
+ */
 PIKEFUN string datalink_val_to_name(int datalink)
 {
   const char * datalink_name;
@@ -580,6 +591,27 @@ PIKEFUN string datalink_val_to_name(int datalink)
   pop_stack();
   push_text(datalink_name);
   free(datalink_name);
+}
+
+EXTRA
+{
+  int o;
+
+  o = DLT_NULL;
+  add_integer_constant("DLT_NULL", o, 0);
+
+  o = DLT_EN10MB;
+  add_integer_constant("DLT_EN10MB", o, 0);
+
+  o = DLT_IEEE802;
+  add_integer_constant("DLT_IEEE802", o, 0);
+
+  o = DLT_ARCNET;
+  add_integer_constant("DLT_ARCNET", o, 0);
+
+  o = DLT_SLIP;
+  add_integer_constant("DLT_SLIP", o, 0);
+
 }
 
 INIT
