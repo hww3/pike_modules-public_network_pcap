@@ -14,9 +14,9 @@ AC_CHECK_LIB(pcap, pcap_open_live)
 AC_CHECK_FUNCS(pcap_lib_version) 
 AC_CHECK_FUNCS(pcap_breakloop) 
 
-PCAP_LIBS="-lpcap"
-
 AC_CHECK_FUNCS(usleep)
+
+PCAP_LIBS="$LIBS"
 
 AC_SUBST(PCAP_CFLAGS) 
 AC_SUBST(PCAP_LIBS)
