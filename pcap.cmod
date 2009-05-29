@@ -104,8 +104,40 @@ PIKEVAR int capture_timeout;
  * Low-level Pcap interface
  *
  ****/
+void dispatch_pike_method(u_char *user_data, const struct pcap_pkthdr *header,
+  const u_char *packet);
 
 void got_packet_cb(u_char *user_data, const struct pcap_pkthdr *header, 
+  const u_char *packet)
+{
+
+  struct thread_state *state;
+
+  if((state = thread_state_for_id(th_self()))!=NULL)
+  {
+    // This is a pike thread.  Do we have the interpreter lock?
+    if(!state->swapped)
+    {
+      // Yes.  Go for it...
+      dispatch_pike_method(user_data, header, packet);
+    }
+    else
+    {
+      // Nope, let's get it...
+      mt_lock_interpreter();
+      SWAP_IN_THREAD(state);
+
+      dispatch_pike_method(user_data, header, packet);
+
+      // Restore
+      SWAP_OUT_THREAD(state);
+      mt_unlock_interpreter();
+     }
+   }
+}
+
+
+void dispatch_pike_method(u_char *user_data, const struct pcap_pkthdr *header, 
   const u_char *packet)
 {
   struct svalue *sv;
@@ -479,8 +511,10 @@ PIKEFUN int loop(int cnt, mixed|void data)
   if(!THIS->object_data->handle)
     Pike_error("Public.Network.Pcap()->loop(): not open.\n");
 
+  THREADS_ALLOW();
   res = pcap_loop(THIS->object_data->handle, cnt, 
     got_packet_cb, user_data);  
+  THREADS_DISALLOW();
 
   push_int(res);
 
@@ -514,9 +548,10 @@ PIKEFUN int dispatch(int cnt, mixed|void data)
   if(!THIS->object_data->handle)
     Pike_error("Public.Network.Pcap()->dispatch(): not open.\n");
 
+  THREADS_ALLOW();
   res = pcap_dispatch(THIS->object_data->handle, cnt, 
     got_packet_cb, user_data);  
-
+  THREADS_DISALLOW();
   push_int(res);
 
   return;
