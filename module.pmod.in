@@ -1,7 +1,7 @@
 #pike __REAL_VERSION__
 
 constant __author = "Bill Welliver <hww3@riverweb.com>";
-constant __version = "1.4";
+constant __version = "1.5";
 
 class Pcap {
 
