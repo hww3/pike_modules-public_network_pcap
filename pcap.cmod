@@ -538,7 +538,9 @@ PIKEFUN mapping next()
   if(!THIS->object_data->handle)
     Pike_error("Public.Network.Pcap()->next(): not open.\n");
 
+  THREADS_ALLOW();
   packet = pcap_next(THIS->object_data->handle, &header);
+  THREADS_DISALLOW();
 
   if(packet == NULL)
   {
