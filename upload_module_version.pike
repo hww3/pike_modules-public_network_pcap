@@ -19,7 +19,7 @@ int main(int argc, array(string) argv)
 
   object in = Stdio.FILE("stdin");
 
-  Stdio.stdout.write("Have you updated the changelog, package components and module version? ");
+  Stdio.stdout.write("Have you updated the changelog and module version? ");
   string ans = in->gets();
 
   if(lower_case(ans[0..0]) != "y") exit(1);
@@ -38,18 +38,17 @@ int main(int argc, array(string) argv)
   write("changes: " + changes);
 
   m->set_auth(user, password);
-mixed e;
-if(e = catch(m->add_new_version(module, version, changes, license)));
-{
 
-  werror("an error occurred while creating the new version:\n");
-  werror(e[0] + "\n");
-  Stdio.stdout.write("Continue? ");
-  string ans = in->gets();
+  mixed err = catch(m->add_new_version(module, version, changes, license));
+  if(err)
+  {
+    Stdio.stdout.write("An error occurred while adding the new version:\n" + 
+      err[0] + "\nContinue anyway? ");
+    string ans = in->gets();
 
-  if(lower_case(ans[0..0]) != "y") exit(1);
-  
-}
+    if(lower_case(ans[0..0]) != "y") exit(1);
+    
+  }
   m->set_dependency(module, version, "Pike", "7.6.0", "7.7.999", 1);
   m->set_module_source(module, version, replace(module, ".", "_") + "-" + version + ".tar.gz");
 
