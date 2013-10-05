@@ -43,22 +43,6 @@ CONFIG_HEADERS=@CONFIG_HEADERS@
 @dynamic_module_makefile@
 @dependencies@
 
-pmar:  verify
-	mkdir ${MODULE_DIR_NAME}-1.${MIN}
-	mkdir ${MODULE_DIR_NAME}-1.${MIN}/MODULE
-	mkdir ${MODULE_DIR_NAME}-1.${MIN}/SCRIPTS
-	-cp package/*.pike ${MODULE_DIR_NAME}-1.${MIN}/SCRIPTS
-	-cp -rf plib/modules/* ${MODULE_DIR_NAME}-1.${MIN}/MODULE
-	echo "MODULE=${MODULE_NAME}" > ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT
-	echo "VERSION=1.${MIN}" >> ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT
-	if test x${OBJS} = x ; then \
-	echo "PLATFORM=any/any" >> ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT ; \
-	else \
-	echo "CREATING A NON-PLATFORM INDEPENDENT PACKAGE! YOU MUST UPDATE THE PLATFORM VALUE IN METADATA.TXT." ;\
-	fi
-	tar cvf ${MODULE_DIR_NAME}-1.${MIN}.pmar ${MODULE_DIR_NAME}-1.${MIN}
-	rm -rf ${MODULE_DIR_NAME}-1.${MIN}
-
 release: verify
 #	svn copy -m "new release" http://wush.net/svn/hww3/trunk/pike_modules/${MODULE_DIR_NAME} tags/pike_modules/${MODULE_DIR_NAME}/RELEASE_1_${MIN} 
 	${MAKE} pmar RELEASE=${MIN}
@@ -71,3 +55,24 @@ release: verify
 	rm -rf ${MODULE_DIR_NAME}-1.${MIN}
 	pike upload_module_version.pike ${MODULE_NAME} 1.${MIN} "${MODULE_LICENSE}"
         
+
+pmar:  
+	mkdir ${MODULE_DIR_NAME}-1.${MIN}
+	mkdir ${MODULE_DIR_NAME}-1.${MIN}/MODULE
+	mkdir ${MODULE_DIR_NAME}-1.${MIN}/SCRIPTS
+	-cp package/*.pike ${MODULE_DIR_NAME}-1.${MIN}/SCRIPTS
+	-cp -rf plib/modules/* ${MODULE_DIR_NAME}-1.${MIN}/MODULE
+	echo "MODULE=${MODULE_NAME}" > ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT
+	echo "VERSION=1.${MIN}" >> ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT
+	if test "x${OBJS}" = x ; then \
+	echo "PLATFORM=any/any" >> ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT ; \
+	elif test "x${PLATFORM}" != "x" ; then \
+	  echo "PLATFORM=${PLATFORM}" >> ${MODULE_DIR_NAME}-1.${MIN}/METADATA.TXT ; \
+	  echo "PLATFORM IS ${PLATFORM}"; \
+        else \
+        echo "No PLATFORM SPECIFIED" ; \
+        exit 1; \
+	fi
+	tar cvf ${MODULE_DIR_NAME}-1.${MIN}.pmar ${MODULE_DIR_NAME}-1.${MIN}
+	rm -rf ${MODULE_DIR_NAME}-1.${MIN}
+

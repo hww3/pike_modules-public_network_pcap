@@ -1,3 +1,7 @@
+Version 1.6:
+
+- updates for Windows
+
 Version 1.5:
 
 - release the interpreter lock while running in pcap capture

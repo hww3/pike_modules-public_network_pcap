@@ -10,6 +10,8 @@ AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_LIB(socket, accept) 
 AC_CHECK_LIB(nsl, getservbyname) 
 AC_CHECK_LIB(pcap, pcap_open_live) 
+AC_CHECK_LIB(packet, pcap_lib_version)
+AC_CHECK_LIB(wpcap, pcap_findalldevs_ex)
 
 AC_CHECK_FUNCS(pcap_lib_version) 
 AC_CHECK_FUNCS(pcap_breakloop) 
